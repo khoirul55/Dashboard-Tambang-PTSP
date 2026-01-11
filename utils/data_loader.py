@@ -28,24 +28,47 @@ def load_produksi():
         return pd.DataFrame()
     
     try:
-        # ============ FIX: HAPUS KOLOM UNNAMED ============
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        
         # ============ FIX: HAPUS HEADER BERULANG ============
-        # Filter rows yang bukan header (Shift != 'Shift')
         df = df[df['Shift'] != 'Shift']
-        
-        # ============ FIX: VALIDASI EXCAVATOR ============
-        # Hanya ambil excavator yang valid (mulai dengan "PC")
-        df = df[df['Excavator'].astype(str).str.startswith('PC', na=False)]
         
         # ============ FIX: VALIDASI SHIFT ============
         valid_shifts = ['Shift 1', 'Shift 2', 'Shift 3']
         df = df[df['Shift'].isin(valid_shifts)]
         
-        # ============ CLEAN DATE ============
+        # ============ FIX: CLEAN DATE ============
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df = df[df['Date'].notna()]
+        
+        # ============ FIX: DETEKSI & PERBAIKI KOLOM BERGESER ============
+        # Data September+ bergeser 1 kolom ke kiri
+        # Deteksi: jika Excavator berisi nama material (bukan PC xxx)
+        
+        mask_normal = df['Excavator'].astype(str).str.startswith('PC', na=False)
+        df_normal = df[mask_normal].copy()
+        df_shifted = df[~mask_normal].copy()
+        
+        # Perbaiki data yang bergeser
+        if len(df_shifted) > 0:
+            df_shifted_fixed = pd.DataFrame()
+            df_shifted_fixed['Date'] = df_shifted['Date']
+            df_shifted_fixed['Time'] = df_shifted['Time']
+            df_shifted_fixed['Shift'] = df_shifted['Shift']
+            df_shifted_fixed['Front'] = df_shifted['Commudity']       # TAJARANG
+            df_shifted_fixed['Commudity'] = df_shifted['Excavator']   # LIMESTONE
+            df_shifted_fixed['Excavator'] = df_shifted['Dump Truck']  # PC 850-03
+            df_shifted_fixed['Dump Truck'] = df_shifted['Dump Loc']   # 5
+            df_shifted_fixed['Dump Loc'] = df_shifted['Rit']          # SP6
+            df_shifted_fixed['Rit'] = df_shifted['Tonnase']           # 3
+            df_shifted_fixed['Tonnase'] = df_shifted['Unnamed: 10']   # 102 (nilai sebenarnya)
+            
+            # Gabungkan kembali
+            df = pd.concat([df_normal, df_shifted_fixed], ignore_index=True)
+        
+        # ============ FIX: HAPUS KOLOM UNNAMED ============
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        
+        # ============ FIX: VALIDASI EXCAVATOR ============
+        df = df[df['Excavator'].astype(str).str.startswith('PC', na=False)]
         
         # ============ CLEAN NUMERIC COLUMNS ============
         numeric_cols = ['Rit', 'Tonnase']
@@ -56,13 +79,11 @@ def load_produksi():
         # ============ FIX: DUMP TRUCK SEBAGAI STRING ============
         if 'Dump Truck' in df.columns:
             df['Dump Truck'] = df['Dump Truck'].astype(str)
-            # Filter hanya yang berupa angka (bukan nama excavator)
             df = df[df['Dump Truck'].str.match(r'^\d+$', na=False)]
         
-        # Remove rows with all NaN values
-        df = df.dropna(how='all')
-        
-        # Reset index
+        # Remove rows with NaN Tonnase
+        df = df.dropna(subset=['Tonnase'])
+        df = df[df['Tonnase'] > 0]
         df = df.reset_index(drop=True)
         
         return df
