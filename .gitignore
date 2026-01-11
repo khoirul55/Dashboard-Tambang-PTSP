@@ -1,5 +1,7 @@
-# Data 
-data/
+# Excel temporary / lock files
+~$*.xlsx
+~$*.xls
+
 
 # Virtual environment
 venv/
