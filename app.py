@@ -55,18 +55,46 @@ def logout():
     st.session_state.logged_in = False
     st.session_state.username = st.session_state.role = st.session_state.name = None
 
-def chart_layout(title="", height=300):
-    return dict(
+def chart_layout(title=None, height=300):
+    layout = dict(
         template='plotly_dark',
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         height=height,
-        margin=dict(l=10,r=10,t=40 if title else 10,b=10),
-        title=dict(text=title, x=0.5, font=dict(size=14)) if title else None,
-        xaxis=dict(showgrid=False, zeroline=False),
-        yaxis=dict(showgrid=True, gridcolor='#21262d', zeroline=False),
-        legend=dict(orientation='h', y=-0.15)
+        margin=dict(
+            l=60,
+            r=30,
+            t=50 if title else 30,
+            b=60
+        ),
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            automargin=True
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor='#21262d',
+            zeroline=False,
+            automargin=True
+        ),
+        legend=dict(
+            orientation='h',
+            y=-0.25,
+            x=0.5,
+            xanchor='center'
+        )
     )
+
+    if title:
+        layout["title"] = dict(
+            text=title,
+            x=0.5,
+            font=dict(size=14)
+        )
+
+    return layout
+
 
 def handle_upload(uploaded_file, target_name):
     if uploaded_file:
@@ -175,10 +203,17 @@ def show_overview():
         st.markdown('<div class="section-title">🚨 Top Gangguan</div>', unsafe_allow_html=True)
         if not df_gangguan.empty:
             dg_top = df_gangguan.head(5)
-            fig = px.bar(dg_top, x='Frekuensi', y='Row Labels', orientation='h',
-                         color_discrete_sequence=['#f85149'])
-            fig.update_layout(**chart_layout(height=200), yaxis={'categoryorder':'total ascending'})
+            fig = px.bar(
+                dg_top,
+                x='Frekuensi',
+                y='Row Labels',
+                orientation='h',
+                color_discrete_sequence=['#f85149']
+            )
+            fig.update_layout(**chart_layout(height=200))
+            fig.update_yaxes(categoryorder='total ascending')
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.info("Data tidak tersedia")
     
@@ -397,12 +432,19 @@ def show_monitoring():
             
             with col2:
                 st.markdown('<div class="section-title">🔝 Top 10 Konsumsi BBM</div>', unsafe_allow_html=True)
-                fig = px.bar(db.nlargest(10,'Total'), x='Total', y='Tipe Alat', orientation='h', color='Total', color_continuous_scale='OrRd')
-                fig.update_layout(**chart_layout(height=350), yaxis={'categoryorder':'total ascending'})
+                fig = px.bar(
+                    db.nlargest(10,'Total'),
+                    x='Total',
+                    y='Tipe Alat',
+                    orientation='h',
+                    color='Total',
+                    color_continuous_scale='OrRd'
+                )
+                fig.update_layout(**chart_layout(height=350))
+                fig.update_yaxes(categoryorder='total ascending')
                 fig.update_coloraxes(showscale=False)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            st.dataframe(db, use_container_width=True, height=300)
+                st.plotly_chart(fig, use_container_width=True)   
+                st.dataframe(db, use_container_width=True, height=300)
         else:
             st.info("Data BBM tidak tersedia. Upload file Monitoring_2025_.xlsx")
     
